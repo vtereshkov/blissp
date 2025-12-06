@@ -1,0 +1,2 @@
+# blissp
+BLISSP = BLISS + LISP
