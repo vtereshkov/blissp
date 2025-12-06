@@ -8,8 +8,8 @@
 #define LEN  8
 #define VARS 64
 
-typedef struct {char name[LEN]; int val;} Var;
-typedef struct {Var vars[VARS]; int num;} Vars;
+typedef struct {char name[LEN]; int addr, size;} Var;
+typedef struct {int mem[VARS]; Var vars[VARS]; int num;} Vars;
 
 static void check(bool ok, const char *msg, char ch) {
     if (!ok) {
@@ -26,45 +26,46 @@ static int getvar(Vars *vars, const char *name, int len) {
     if (len > LEN - 1) len = LEN - 1;
 
     for (int i = 0; i < vars->num; i++)
-        if (memcmp(name, vars->vars[i].name, len) == 0)
-            return i;
+        if (memcmp(name, vars->vars[i].name, len) == 0 && vars->vars[i].name[len] == 0)
+            return vars->vars[i].addr;
 
-    check(vars->num < VARS, "too many variables", 0);
-    Var *var = &vars->vars[vars->num++];
-    memcpy(var->name, name, len);
+    check(vars->num < VARS, "out of memory", 0);
+    Var *var = &vars->vars[vars->num];
+    memcpy(var->name, name, len); 
     var->name[len] = 0;
-    return vars->num - 1;
+    var->addr = (vars->num > 0) ? (vars->vars[vars->num - 1].addr + vars->vars[vars->num - 1].size) : 0;
+    var->size = 1;
+    check(var->addr + var->size < VARS, "out of memory", 0);
+    return vars->vars[vars->num++].addr;
 }
 
 static int expr(const char **src, Vars *vars, bool skip);
 
 static int term(const char **src, Vars *vars, bool skip) {
+    int val = 0;
     skipspace(src);
     if (isalpha(**src)) {
         int len = 0;
         while (isalpha((*src)[len]))
             len++;
-        int var = skip ? -1 : getvar(vars, *src, len);
+        val = skip ? -1 : getvar(vars, *src, len);
         (*src) += len;
-        skipspace(src);
-        if (**src == '\'') {var = skip ? -1 : vars->vars[var].val; (*src)++;}
-        return var;
     } else if (isdigit(**src)) {
         char *tail = NULL;
-        const int num = strtol(*src, &tail, 10);
+        val = strtol(*src, &tail, 10);
         *src = tail;
-        return num;
     } else if (**src == '(') {
         (*src)++;
-        const int val = expr(src, vars, skip);
+        val = expr(src, vars, skip);
         skipspace(src);
-        check(**src == ')', "expected", ')');
+        check(**src == ')', "expected ), found", **src);
         (*src)++;
-        return val;
     } else {
         check(false, "illegal term", **src);
-        return 0;
     }
+    skipspace(src);
+    if (**src == '\'') {val = skip ? -1 : vars->mem[val]; (*src)++;}
+    return val;
 }
 
 static int expr(const char **src, Vars *vars, bool skip)
@@ -83,7 +84,6 @@ static int expr(const char **src, Vars *vars, bool skip)
 
         (*src)++;
         const int rval = term(src, vars, skip);
-
         if (!skip) {
             switch (op) {
                 case '+': val += rval; continue;
@@ -98,7 +98,8 @@ static int expr(const char **src, Vars *vars, bool skip)
                 case '#': val = (val != rval) ? -1 : 0; continue;
                 case '>': val = (val >  rval) ? -1 : 0; continue;
                 case '<': val = (val <  rval) ? -1 : 0; continue;
-                case ':': vars->vars[val].val = rval; val = -1; continue;
+                case ':': vars->mem[val] = rval; val = -1; continue;
+                case '~': check(vars->num > 0 && val == vars->vars[vars->num - 1].addr && val + rval < VARS, "cannot resize", 0); vars->vars[vars->num - 1].size = rval; val = -1; continue;
                 case '$': printf("%d ", rval); val = -1; continue;  
                 case ',': val = rval; continue;
                 default: check(false, "illegal operator", op); break;
@@ -115,10 +116,9 @@ static void eval(const char *src) {
 
 int main(int argc, char **argv)
 {
-    check(argc >= 0, "no input file", 0);
+    check(argc > 1, "no input file", 0);
     FILE *f = fopen(argv[1], "rb");
     check(f, "cannot open file", 0);
-
     char src[512] = {0};
     check(fread(src, 1, sizeof(src), f) > 0, "cannot read file", 0);
     fclose(f);

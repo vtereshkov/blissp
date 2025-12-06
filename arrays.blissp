@@ -1,0 +1,22 @@
+(len: 10),
+(arr ~ len'),
+
+(n: len'), 
+(@ (
+	(arr + n' - 1: (n' * n')),
+	(n: (n' - 1)),
+	n'
+)),
+
+(sum: 0),
+(n: len'), 
+(@ (
+	(item: (arr + len' - n')'),
+	($ item'),	
+	(sum: (sum' + item')),
+	(n: (n' - 1)),
+	n'
+)),
+
+($ (sum' = (len' * (len' + 1) * (2 * len' + 1) / 6)))
+

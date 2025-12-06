@@ -6,8 +6,8 @@ expr = [term] {op term}.
 op   = "+" | "-" | "*" | "/" | "%" | 
        "&" | "|" | "!" | 
        "=" | "#" | "<" | ">" | 
-       ":" | "?" | "@" | "$" | ",".
-term = var ["'"] | num | "(" expr ")".
+       ":" | "~" | "?" | "@" | "$" | ",".
+term = (var | num | "(" expr ")") ["'"].
 var  = letter {letter}.
 num  = digit {digit}.
 ```
