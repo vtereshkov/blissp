@@ -1,0 +1,21 @@
+(prime: 2),
+(@  
+  (
+    prime' < 100 ?
+    (
+      (ok: 1),
+      (div: 2),
+      (@  
+        (
+          div' * div' < (prime' + 1) & ok' ?
+          (
+            (prime' % div' = 0 ? (ok: 0)),
+            (div: (div' + 1))
+          )
+        ) 
+      ),
+      (ok' ? ($prime')),
+      (prime: (prime' + 1))
+    )
+  )
+)
